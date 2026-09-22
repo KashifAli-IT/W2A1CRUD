@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
 app = FastAPI()
@@ -27,7 +27,61 @@ tasks = [
 class TaskCreate(BaseModel):
     title: str
     completed: bool = False
+# Request body for updating an existing task
+class TaskUpdate(BaseModel):
+    title: str | None = None
+    completed: bool | None = None 
 
+@app.put("/tasks/{id}")
+def update_task(id: int, task_update: TaskUpdate):
+    # Find the task with the given ID
+    for task in tasks:
+        if task["id"] == id:
+            # Empty body
+            if task_update.title is None and task_update.completed is None:
+                return JSONResponce(
+                    status_code=400,
+                    content={
+                        "error": "Request body cannot be empty"
+                    }
+                )
+            # Update title if provided
+            if task_update.title is not None:
+                if not task_update.title.strip():
+                    return JSONResponse(
+                        status_code=400,
+                        content={
+                            "error": "Title cannot be empty"
+                        }
+                    )
+                task["title"] = task_update.title.strip()
+            # Update completed status if provided
+            if task_update.completed is not None:
+                task["completed"] = task_update.completed
+
+            return task
+    # Task not found
+    return JSONResponse(
+        status_code=404,
+        content={
+            "error": f"Task with ID {id} not found"
+        }
+    )   
+
+@app.delete("/tasks/{id}", status_code=204)    
+def delete_task(id: int):
+    for index, task in enumerate(tasks):
+        if task["id"] == id:
+            tasks.pop(index)
+            return Response(status_code=204)
+    
+    return JSONResponse(
+        status_code=404,
+        content={
+            "error": f"Task with ID {id} not found"
+        }
+    )
+    
 @app.get("/")
 def read_root():
     return {
