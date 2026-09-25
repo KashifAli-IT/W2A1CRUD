@@ -1,6 +1,6 @@
 # Task API
 
-A simple RESTful CRUD API built with **FastAPI** as part of the FlyRank AI Backend Engineer internship task.
+A simple RESTful CRUD API built with **FastAPI** and **SQLite** as part of the FlyRank AI Backend Engineer internship task.
 
 The API manages tasks with three fields:
 
@@ -8,7 +8,7 @@ The API manages tasks with three fields:
 * `title` — task title
 * `done` — completion status
 
-The project uses an in-memory Python list as its temporary data store.
+SQLite is used as the persistent data store, so tasks survive API restarts.
 
 ## Features
 
@@ -19,6 +19,9 @@ The project uses an in-memory Python list as its temporary data store.
 * Delete a task
 * Input validation
 * Proper HTTP status codes
+* SQLite persistence
+* Automatic database and table creation
+* Three seed tasks on a fresh database
 * Interactive Swagger UI documentation
 
 ## Tech Stack
@@ -27,8 +30,47 @@ The project uses an in-memory Python list as its temporary data store.
 * FastAPI
 * Uvicorn
 * Pydantic
+* SQLite
 * REST API
 * Swagger UI / OpenAPI
+
+## Why SQLite?
+
+SQLite was chosen because it provides a simple persistent database without requiring a separate database server.
+
+* The database is stored in a single file.
+* It requires zero database-server setup.
+* Data survives API restarts.
+* It is easy to inspect directly using DB Browser for SQLite.
+* A fresh clone can automatically create its database and seed data.
+
+## Database
+
+The SQLite database file is:
+
+```text
+tasks.db
+```
+
+The file is created automatically when the application starts.
+
+The database contains a `tasks` table with:
+
+| Column  | Type    | Description                    |
+| ------- | ------- | ------------------------------ |
+| `id`    | INTEGER | Primary key                    |
+| `title` | TEXT    | Task title                     |
+| `done`  | INTEGER | Completion status (`0` or `1`) |
+
+`tasks.db` is included in `.gitignore`, so it is not committed to GitHub. Each fresh clone creates its own database automatically.
+
+On a new database, the application creates these three seed tasks:
+
+| ID | Title                  | Done  |
+| -- | ---------------------- | ----- |
+| 1  | Learn FastAPI          | false |
+| 2  | Build CRUD API         | false |
+| 3  | Push Project to GitHub | false |
 
 ## Installation & Run
 
@@ -54,7 +96,7 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-Run the API:
+Start the API with one command:
 
 ```powershell
 uvicorn main:app --reload
@@ -66,6 +108,25 @@ The API will be available at:
 http://localhost:8000
 ```
 
+The database is created automatically when the application starts. No manual database setup is required.
+
+## Clean Start Verification
+
+The project was tested from a clean database state by deleting `tasks.db` and restarting the application.
+
+The database was recreated automatically, the `tasks` table was created, and the three seed tasks were inserted.
+
+Example:
+
+```text
+HTTP/1.1 200 OK
+content-type: application/json
+
+[{"id":1,"title":"Learn FastAPI","done":false},{"id":2,"title":"Build CRUD API","done":false},{"id":3,"title":"Push Project to GitHub","done":false}]
+```
+
+This confirms that a fresh clone can start the application without manually creating the database.
+
 ## Swagger UI
 
 Interactive API documentation is available at:
@@ -75,6 +136,32 @@ http://localhost:8000/docs
 ```
 
 ![Swagger UI](docs/swagger-ui.png)
+
+## Database in DB Browser for SQLite
+
+The SQLite database can be opened directly with DB Browser for SQLite.
+
+![SQLite Database](docs/db-browser.png)
+
+## Stage 4: SQLite Exploration
+
+I explored the SQLite database directly using DB Browser for SQLite and verified that the API and database use the same source of truth.
+
+Example SQL query:
+
+```sql
+UPDATE tasks SET done = 1;
+```
+
+This query marked all existing tasks as completed in SQLite, and the change appeared immediately through `GET /tasks` without restarting the API.
+
+I also used:
+
+```sql
+SELECT * FROM tasks;
+```
+
+to inspect all tasks stored in the database.
 
 ## API Endpoints
 
@@ -132,28 +219,19 @@ DELETE /tasks/{id}  → Delete
 ```text
 W2A1CRUD/
 ├── .gitignore
+├── database.py
 ├── main.py
 ├── requirements.txt
 ├── README.md
 └── docs/
-    └── swagger-ui.png
+    ├── swagger-ui.png
+    └── db-browser.png
 ```
 
-## Stage 4: SQLite Exploration
-
-I explored the SQLite database directly using DB Browser for SQLite and verified that the API and database use the same source of truth.
-
-Example query:
-
-```sql
-UPDATE tasks SET done = 1;
-```
-
-This query marked all existing tasks as completed in SQLite, and the change appeared immediately through `GET /tasks` without restarting the API.
-
+The `tasks.db` file is generated automatically at runtime and is intentionally excluded from Git.
 
 ## Author
 
 **Kashif Ali**
 
-GitHub: [KashifAli-IT](https://github.com/KashifAli-IT)
+GitHub: https://github.com/KashifAli-IT
