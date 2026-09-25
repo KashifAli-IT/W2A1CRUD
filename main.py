@@ -153,18 +153,22 @@ def create_task(task: TaskCreate):
                 "error": "Title cannot be empty"
             }
         )
-    
-    # Generate a new ID for the task
-    new_id = max(existing_task["id"] for existing_task in tasks) + 1 if tasks else 1
-    
-    # Create a new task 
-    new_task = {
+
+    connection = get_connection()
+
+    cursor = connection.execute(
+        "INSERT INTO tasks (title, done) VALUES (?, ?)",
+        (task.title.strip(), int(task.done))
+    )
+
+    connection.commit()
+
+    new_id = cursor.lastrowid
+
+    connection.close()
+
+    return {
         "id": new_id,
         "title": task.title.strip(),
         "done": task.done
-    }
-
-    # Add the new task to the in-memory storage
-    tasks.append(new_task)      
-
-    return new_task
+    }     
