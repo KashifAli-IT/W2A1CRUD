@@ -35,55 +35,98 @@ class TaskUpdate(BaseModel):
     title: str | None = None
     done: bool | None = None 
 
-@app.put("/tasks/{id}", description="Update an existing task by ID")
-def update_task(id: int, task_update: TaskUpdate):
-    # Find the task with the given ID
-    for task in tasks:
-        if task["id"] == id:
-            # Empty body
-            if task_update.title is None and task_update.done is None:
-                return JSONResponce(
-                    status_code=400,
-                    content={
-                        "error": "Request body cannot be empty"
-                    }
-                )
-            # Update title if provided
-            if task_update.title is not None:
-                if not task_update.title.strip():
-                    return JSONResponse(
-                        status_code=400,
-                        content={
-                            "error": "Title cannot be empty"
-                        }
-                    )
-                task["title"] = task_update.title.strip()
-            # Update done status if provided
-            if task_update.done is not None:
-                task["done"] = task_update.done
+@app.put("/tasks/{task_id}", description="Update an existing task")
+def update_task(task_id: int, task_update: TaskUpdate):
+    # Validate request body
+    if task_update.title is None and task_update.done is None:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": "Request body cannot be empty"
+            }
+        )
 
-            return task
-    # Task not found
-    return JSONResponse(
-        status_code=404,
-        content={
-            "error": f"Task with ID {id} not found"
-        }
-    )   
+    # Use existing database values when a field is not provided
+    connection = get_connection()
 
-@app.delete("/tasks/{id}", status_code=204, description="Delete a task by ID")    
-def delete_task(id: int):
-    for index, task in enumerate(tasks):
-        if task["id"] == id:
-            tasks.pop(index)
-            return Response(status_code=204)
-    
-    return JSONResponse(
-        status_code=404,
-        content={
-            "error": f"Task with ID {id} not found"
-        }
+    existing_task = connection.execute(
+        "SELECT id, title, done FROM tasks WHERE id = ?",
+        (task_id,)
+    ).fetchone()
+
+    if existing_task is None:
+        connection.close()
+
+        return JSONResponse(
+            status_code=404,
+            content={
+                "error": f"Task {task_id} not found"
+            }
+        )
+
+    title = existing_task["title"]
+    done = bool(existing_task["done"])
+
+    if task_update.title is not None:
+        if not task_update.title.strip():
+            connection.close()
+
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error": "Title cannot be empty"
+                }
+            )
+
+        title = task_update.title.strip()
+
+    if task_update.done is not None:
+        done = task_update.done
+
+    connection.execute(
+        "UPDATE tasks SET title = ?, done = ? WHERE id = ?",
+        (title, int(done), task_id)
     )
+
+    connection.commit()
+
+    updated_task = connection.execute(
+        "SELECT id, title, done FROM tasks WHERE id = ?",
+        (task_id,)
+    ).fetchone()
+
+    connection.close()
+
+    return {
+        "id": updated_task["id"],
+        "title": updated_task["title"],
+        "done": bool(updated_task["done"])
+    }
+
+@app.delete("/tasks/{task_id}", status_code=204, description="Delete a task")
+def delete_task(task_id: int):
+    connection = get_connection()
+
+    cursor = connection.execute(
+        "DELETE FROM tasks WHERE id = ?",
+        (task_id,)
+    )
+
+    connection.commit()
+
+    if cursor.rowcount == 0:
+        connection.close()
+
+        return JSONResponse(
+            status_code=404,
+            content={
+                "error": f"Task {task_id} not found"
+            }
+        )
+
+    connection.close()
+
+    return Response(status_code=204)
 
 @app.get("/", description="Root endpoint that provides basic information about the API")
 def read_root():
