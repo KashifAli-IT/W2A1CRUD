@@ -1,36 +1,38 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
+from database import init_db
 
 app = FastAPI()
+init_db()
 
 # In-memory storage for tasks
 tasks = [
     {
         "id": 1,
         "title": "Learn FastAPI",
-        "completed": False
+        "done": False
     },
     {
         "id": 2,
         "title": "Build CRUD API",
-        "completed": False
+        "done": False
     },
     {
         "id": 3,
         "title": "Push Project to GitHub",
-        "completed": False
+        "done": False
     }
 ]
 
 # Request body for creating a new task
 class TaskCreate(BaseModel):
     title: str
-    completed: bool = False
+    done: bool = False
 # Request body for updating an existing task
 class TaskUpdate(BaseModel):
     title: str | None = None
-    completed: bool | None = None 
+    done: bool | None = None 
 
 @app.put("/tasks/{id}", description="Update an existing task by ID")
 def update_task(id: int, task_update: TaskUpdate):
@@ -38,7 +40,7 @@ def update_task(id: int, task_update: TaskUpdate):
     for task in tasks:
         if task["id"] == id:
             # Empty body
-            if task_update.title is None and task_update.completed is None:
+            if task_update.title is None and task_update.done is None:
                 return JSONResponce(
                     status_code=400,
                     content={
@@ -55,9 +57,9 @@ def update_task(id: int, task_update: TaskUpdate):
                         }
                     )
                 task["title"] = task_update.title.strip()
-            # Update completed status if provided
-            if task_update.completed is not None:
-                task["completed"] = task_update.completed
+            # Update done status if provided
+            if task_update.done is not None:
+                task["done"] = task_update.done
 
             return task
     # Task not found
@@ -131,7 +133,7 @@ def create_task(task: TaskCreate):
     new_task = {
         "id": new_id,
         "title": task.title.strip(),
-        "completed": task.completed
+        "done": task.done
     }
 
     # Add the new task to the in-memory storage
