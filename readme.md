@@ -139,9 +139,18 @@ W2A1CRUD/
     └── swagger-ui.png
 ```
 
-## Note
+## Stage 4: SQLite Exploration
 
-This project currently uses an in-memory list instead of a persistent database. Data resets whenever the server restarts.
+I explored the SQLite database directly using DB Browser for SQLite and verified that the API and database use the same source of truth.
+
+Example query:
+
+```sql
+UPDATE tasks SET done = 1;
+```
+
+This query marked all existing tasks as completed in SQLite, and the change appeared immediately through `GET /tasks` without restarting the API.
+
 
 ## Author
 
