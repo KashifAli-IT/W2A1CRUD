@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
-from database import init_db
+from database import init_db, get_connection
+
 
 app = FastAPI()
 init_db()
@@ -100,20 +101,47 @@ def read_health():
 
 @app.get("/tasks", description="Get all tasks")
 def get_tasks():
-    return tasks
+    connection = get_connection()
+
+    rows = connection.execute(
+        "SELECT * FROM tasks"
+    ).fetchall()
+
+    connection.close()
+
+    return [
+        {
+            "id": row["id"],
+            "title": row["title"],
+            "done": bool(row["done"])
+        }
+        for row in rows
+    ]
 
 @app.get("/tasks/{id}", description="Get a specific task by ID")
 def get_task(id: int):
-    for task in tasks:
-        if task["id"] == id:
-            return task
-   
-    return JSONResponse(
-        status_code=404,
-        content={
-            "error": f"Task with ID {id} not found"
+    connection = get_connection()
+
+    row = connection.execute(
+        "SELECT * FROM tasks WHERE id = ?",
+        (id,)
+    ).fetchone()
+
+    connection.close()
+
+    if row is None:
+        return JSONResponse(
+            status_code=404,
+            content={
+                "error": f"Task with ID {id} not found"
             }
-        )        
+        )
+
+    return {
+        "id": row["id"],
+        "title": row["title"],
+        "done": bool(row["done"])
+    }     
 
 @app.post("/tasks", status_code=201, description="Create a new task")
 def create_task(task: TaskCreate):
